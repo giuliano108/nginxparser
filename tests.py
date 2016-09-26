@@ -3,7 +3,7 @@ import unittest
 
 from mockio import mockio
 
-from nginxparser import NginxParser, load,  dumps
+from nginxparser import NginxParser, load, loads, dumps
 
 
 first = operator.itemgetter(0)
@@ -104,6 +104,37 @@ class TestNginxParser(unittest.TestCase):
                 ]]
             ])
 
+    def test_geo_cidr(self):
+        parsed = loads("""
+            geo $geo {
+              default "default_value";
+              1.2.3.4/28 "something_else";
+              123.123.123.123 "plain_ip";
+            }
+        """)
+        self.assertEqual(
+            parsed,
+            [[['geo', '$geo'],
+              [['default', '"default_value"'],
+               ['1.2.3.4/28', '"something_else"'],
+               ['123.123.123.123', '"plain_ip"']]]])
+
+    def test_if_condition(self):
+        parsed = loads("""
+            location = /a-location {
+              if ( -f "${prefix}/a-location") {
+                  return 200;
+              }
+              return 503 'service unavailable';
+            }
+        """)
+        self.assertEqual(
+            parsed,
+            [[['location', '=', '/a-location'],
+              ['if',
+               '-f "${prefix}/a-location"',
+               ['return', '200'],
+               ['return', "503 'service unavailable'"]]]])
 
 if __name__ == '__main__':
     unittest.main()
