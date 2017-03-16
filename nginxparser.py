@@ -2,7 +2,7 @@ import string
 
 from pyparsing import (
     Literal, White, Word, alphanums, CharsNotIn, Forward, Group, SkipTo,
-    Optional, OneOrMore, ZeroOrMore, pythonStyleComment)
+    Optional, OneOrMore, ZeroOrMore, pythonStyleComment, nums, Combine)
 
 
 class NginxParser(object):
@@ -13,9 +13,13 @@ class NginxParser(object):
     # constants
     left_bracket = Literal("{").suppress()
     right_bracket = Literal("}").suppress()
+    left_parens = Literal("(").suppress()
+    right_parens = Literal(")").suppress()
     semicolon = Literal(";").suppress()
     space = White().suppress()
-    key = Word(alphanums + "_/")
+    ipaddress = Combine(Word(nums) + ('.' + Word(nums))*3)
+    cidr = Combine(ipaddress + '/' + Word(nums))
+    key = (cidr | ipaddress | Word(alphanums + "_/")).setName('key')
     value = CharsNotIn("{};")
     value2 = CharsNotIn(";")
     location = CharsNotIn("{};," + string.whitespace)
@@ -25,29 +29,31 @@ class NginxParser(object):
     modifier = Literal("=") | Literal("~*") | Literal("~") | Literal("^~")
 
     # rules
-    assignment = (key + Optional(space + value) + semicolon)
-    setblock = (setword + OneOrMore(space + value2) + semicolon)
+    assignment = (key + Optional(space + value) + semicolon).setName('assignment')
+    setblock = (setword + OneOrMore(space + value2) + semicolon).setName('setblock')
     block = Forward()
     ifblock = Forward()
     subblock = Forward()
+    condition = (left_parens + Word(alphanums + '$_-" {}/') + right_parens).setName('condition')
 
     ifblock << (
         ifword
-        + SkipTo('{')
+        + Optional(condition)
+        + SkipTo('{').suppress()
         + left_bracket
         + subblock
-        + right_bracket)
+        + right_bracket).setName('ifblock')
 
     subblock << ZeroOrMore(
         Group(assignment) | block | ifblock | setblock
-    )
+    ).setName('subblock')
 
     block << Group(
         Group(key + Optional(space + modifier) + Optional(space + location))
         + left_bracket
         + Group(subblock)
         + right_bracket
-    )
+    ).setName('block')
 
     script = OneOrMore(Group(assignment) | block).ignore(pythonStyleComment)
 
