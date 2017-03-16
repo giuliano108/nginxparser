@@ -20,11 +20,13 @@ class NginxParser(object):
     ipaddress = Combine(Word(nums) + ('.' + Word(nums))*3)
     cidr = Combine(ipaddress + '/' + Word(nums))
     key = (cidr | ipaddress | Word(alphanums + "_/")).setName('key')
+    variable = Combine(Literal("$") + Word(alphanums + "_"))
     value = CharsNotIn("{};")
     value2 = CharsNotIn(";")
     location = CharsNotIn("{};," + string.whitespace)
     ifword = Literal("if")
     setword = Literal("set")
+    mapword = Literal("map")
     # modifier for location uri [ = | ~ | ~* | ^~ ]
     modifier = Literal("=") | Literal("~*") | Literal("~") | Literal("^~")
 
@@ -33,6 +35,7 @@ class NginxParser(object):
     setblock = (setword + OneOrMore(space + value2) + semicolon).setName('setblock')
     block = Forward()
     ifblock = Forward()
+    mapblock = Forward()
     subblock = Forward()
     condition = (left_parens + Word(alphanums + '$_-" {}/') + right_parens).setName('condition')
 
@@ -44,8 +47,15 @@ class NginxParser(object):
         + subblock
         + right_bracket).setName('ifblock')
 
+    mapblock = Group(
+        Group(mapword + variable + variable)
+        + left_bracket
+        + Group(OneOrMore(Group(space + value + semicolon)))
+        + right_bracket
+    ).setName('mapblock')
+
     subblock << ZeroOrMore(
-        Group(assignment) | block | ifblock | setblock
+        Group(assignment) | block | ifblock | setblock | mapblock
     ).setName('subblock')
 
     block << Group(
@@ -55,7 +65,7 @@ class NginxParser(object):
         + right_bracket
     ).setName('block')
 
-    script = OneOrMore(Group(assignment) | block).ignore(pythonStyleComment)
+    script = OneOrMore(Group(assignment) | block | mapblock).ignore(pythonStyleComment)
 
     def __init__(self, source):
         self.source = source

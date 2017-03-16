@@ -136,5 +136,20 @@ class TestNginxParser(unittest.TestCase):
                ['return', '200'],
                ['return', "503 'service unavailable'"]]]])
 
+    def test_map_block(self):
+        parsed = loads("""
+        map $uri $request_budget_yelp_main {
+          "default" 60000;
+          "~^/biz/" 60001;
+          "~^/search$" 60002;
+        }
+        """)
+        self.assertEqual(
+            parsed,
+            [[['map', '$uri', '$request_budget_yelp_main'],
+              [['"default" 60000'],
+               ['"~^/biz/" 60001'],
+               ['"~^/search$" 60002']]]])
+
 if __name__ == '__main__':
     unittest.main()
