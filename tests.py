@@ -147,9 +147,22 @@ class TestNginxParser(unittest.TestCase):
         self.assertEqual(
             parsed,
             [[['map', '$uri', '$request_budget_yelp_main'],
-              [['"default" 60000'],
-               ['"~^/biz/" 60001'],
-               ['"~^/search$" 60002']]]])
+              [['default', '60000'],
+               ['~^/biz/', '60001'],
+               ['~^/search$', '60002']]]])
+
+    def test_map_block_regex(self):
+        parsed = loads("""
+	map $http_cf_ray $pop3 {
+	  "~.{16}-(?<pop>[A-Z]{3})" $pop;
+	  default                   "";
+	}
+        """)
+        self.assertEqual(
+            parsed,
+            [[['map', '$http_cf_ray', '$pop3'],
+              [['~.{16}-(?<pop>[A-Z]{3})', '$pop'],
+               ['default                   ""']]]])
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,8 +1,20 @@
 import string
 
-from pyparsing import (
-    Literal, White, Word, alphanums, CharsNotIn, Forward, Group, SkipTo,
-    Optional, OneOrMore, ZeroOrMore, pythonStyleComment, nums, Combine)
+from pyparsing import alphanums
+from pyparsing import CharsNotIn
+from pyparsing import Combine
+from pyparsing import Forward
+from pyparsing import Group
+from pyparsing import Literal
+from pyparsing import nums
+from pyparsing import OneOrMore
+from pyparsing import Optional
+from pyparsing import pythonStyleComment
+from pyparsing import QuotedString
+from pyparsing import SkipTo
+from pyparsing import White
+from pyparsing import Word
+from pyparsing import ZeroOrMore
 
 
 class NginxParser(object):
@@ -17,7 +29,7 @@ class NginxParser(object):
     right_parens = Literal(")").suppress()
     semicolon = Literal(";").suppress()
     space = White().suppress()
-    ipaddress = Combine(Word(nums) + ('.' + Word(nums))*3)
+    ipaddress = Combine(Word(nums) + ('.' + Word(nums)) * 3)
     cidr = Combine(ipaddress + '/' + Word(nums))
     key = (cidr | ipaddress | Word(alphanums + "_/")).setName('key')
     variable = Combine(Literal("$") + Word(alphanums + "_"))
@@ -27,6 +39,9 @@ class NginxParser(object):
     ifword = Literal("if")
     setword = Literal("set")
     mapword = Literal("map")
+    mapkv1 = Group(space + QuotedString('"') + space + value + semicolon)
+    mapkv2 = Group(space + value + semicolon)
+    mapkv = mapkv1 | mapkv2
     # modifier for location uri [ = | ~ | ~* | ^~ ]
     modifier = Literal("=") | Literal("~*") | Literal("~") | Literal("^~")
 
@@ -50,7 +65,7 @@ class NginxParser(object):
     mapblock = Group(
         Group(mapword + variable + variable)
         + left_bracket
-        + Group(OneOrMore(Group(space + value + semicolon)))
+        + Group(OneOrMore(mapkv1 | mapkv2))
         + right_bracket
     ).setName('mapblock')
 
@@ -87,6 +102,7 @@ class NginxDumper(object):
     """
     A class that dumps nginx configuration from the provided tree.
     """
+
     def __init__(self, blocks, indentation=4):
         self.blocks = blocks
         self.indentation = indentation
@@ -123,7 +139,7 @@ class NginxDumper(object):
 
     def to_file(self, out):
         for line in self:
-            out.write(line+"\n")
+            out.write(line + "\n")
         out.close()
         return out
 
